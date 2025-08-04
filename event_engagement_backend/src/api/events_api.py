@@ -9,6 +9,9 @@ Author: Fan Engagement Management System
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
+
+# Authentication imports
+from .auth import get_current_user, get_auth_docstring
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 import logging
@@ -42,6 +45,9 @@ router = APIRouter(
     prefix="/fan-engagement/events/v1",
     tags=["Fan Engagement Events"],
     responses={404: {"description": "Not found"}},
+    dependencies=[Depends(get_current_user)],  # Protect all endpoints!
+    # Docs enhancement
+    description=get_auth_docstring(),
 )
 
 # ----------- EventDataSource CRUD ------------
@@ -53,10 +59,12 @@ router = APIRouter(
     summary="Create Event Data Source",
     tags=["Event Data Source"],
     status_code=201,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def create_event_data_source(
     payload: EventDataSourceModel,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Create a new event data source configuration.
@@ -79,10 +87,12 @@ async def create_event_data_source(
     response_model=List[EventDataSourceModel],
     summary="List Event Data Sources",
     tags=["Event Data Source"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def list_event_data_sources(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Retrieve a list of configured data sources.
@@ -98,10 +108,12 @@ async def list_event_data_sources(
     response_model=EventDataSourceModel,
     summary="Get Event Data Source",
     tags=["Event Data Source"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def get_event_data_source(
     ds_id: str,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Get a single data source by its ID.
@@ -117,11 +129,13 @@ async def get_event_data_source(
     response_model=EventDataSourceModel,
     summary="Update Event Data Source",
     tags=["Event Data Source"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def update_event_data_source(
     ds_id: str,
     payload: EventDataSourceModel,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Update a data source configuration.
@@ -141,10 +155,12 @@ async def update_event_data_source(
     summary="Delete Event Data Source",
     tags=["Event Data Source"],
     status_code=204,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def delete_event_data_source(
     ds_id: str,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Delete a data source by its ID.
@@ -190,11 +206,13 @@ class EventMetadataCreateModel(BaseModel):
     summary="Create Event (with validation)",
     tags=["Event Metadata"],
     status_code=201,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def create_event(
     payload: EventMetadataCreateModel,
     helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
     ds_helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
+    user=Depends(get_current_user),
 ):
     """
     Create a new event with event metadata, with business validation.
@@ -247,6 +265,7 @@ async def create_event(
     response_model=List[EventMetadataModel],
     summary="List Events (with filter)",
     tags=["Event Metadata"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def list_events(
     event_type: Optional[str] = Query(None, description="Filter by event type"),
@@ -255,6 +274,7 @@ async def list_events(
     start_after: Optional[datetime] = Query(None, description="Events after this date"),
     start_before: Optional[datetime] = Query(None, description="Events before this date"),
     helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
+    user=Depends(get_current_user),
 ):
     """
     Fetch events based on flexible filters.
@@ -280,10 +300,12 @@ async def list_events(
     response_model=EventMetadataModel,
     summary="Get Event Metadata by ID",
     tags=["Event Metadata"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def get_event_metadata(
     event_id: str,
     helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
+    user=Depends(get_current_user),
 ):
     """
     Get a single event's metadata by ID.
@@ -299,11 +321,13 @@ async def get_event_metadata(
     response_model=EventMetadataModel,
     summary="Update Event Metadata",
     tags=["Event Metadata"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def update_event_metadata(
     event_id: str,
     payload: EventMetadataCreateModel,
     helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
+    user=Depends(get_current_user),
 ):
     """
     Update event's metadata.
@@ -338,9 +362,12 @@ async def update_event_metadata(
     summary="Delete Event",
     tags=["Event Metadata"],
     status_code=204,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def delete_event_metadata(
-    event_id: str, helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper)
+    event_id: str, 
+    helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
+    user=Depends(get_current_user),
 ):
     """
     Delete an event by ID.
@@ -359,11 +386,13 @@ async def delete_event_metadata(
     summary="Create Event Timeline",
     tags=["Event Timeline"],
     status_code=201,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def create_event_timeline(
     payload: EventTimelineModel,
     event_helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
     helper: EventTimelineAsyncHelper = Depends(get_event_timeline_helper),
+    user=Depends(get_current_user),
 ):
     """
     Create a new event timeline for an event.
@@ -390,10 +419,12 @@ async def create_event_timeline(
     response_model=List[EventTimelineModel],
     summary="List Event Timelines",
     tags=["Event Timeline"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def list_event_timelines(
     event_id: Optional[str] = Query(None, description="Filter by event_id"),
     helper: EventTimelineAsyncHelper = Depends(get_event_timeline_helper),
+    user=Depends(get_current_user),
 ):
     """
     List event timelines, optionally by event.
@@ -409,10 +440,12 @@ async def list_event_timelines(
     response_model=EventTimelineModel,
     summary="Get Event Timeline",
     tags=["Event Timeline"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def get_event_timeline(
     timeline_id: str,
     helper: EventTimelineAsyncHelper = Depends(get_event_timeline_helper),
+    user=Depends(get_current_user),
 ):
     """
     Get a timeline by ID.
@@ -428,11 +461,13 @@ async def get_event_timeline(
     response_model=EventTimelineModel,
     summary="Update Event Timeline",
     tags=["Event Timeline"],
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def update_event_timeline(
     timeline_id: str,
     payload: EventTimelineModel,
     helper: EventTimelineAsyncHelper = Depends(get_event_timeline_helper),
+    user=Depends(get_current_user),
 ):
     """
     Update an event timeline (does not change created_at).
@@ -451,10 +486,12 @@ async def update_event_timeline(
     summary="Delete Event Timeline",
     tags=["Event Timeline"],
     status_code=204,
+    responses={401: {"description": "Authentication required"}, 403: {"description": "Unauthorized"}},
 )
 async def delete_event_timeline(
     timeline_id: str,
     helper: EventTimelineAsyncHelper = Depends(get_event_timeline_helper),
+    user=Depends(get_current_user),
 ):
     """
     Delete a timeline by ID.

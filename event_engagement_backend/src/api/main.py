@@ -2,10 +2,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .events_api import router as events_router
+from .auth import get_auth_docstring
 
 app = FastAPI(
     title="Fan Engagement Event API",
-    description="APIs for managing fan engagement event data sources, events, and timelines.",
+    description=(
+        "APIs for managing fan engagement event data sources, events, and timelines.\n\n"
+        "**Authentication**: All endpoints (except `/`) require authentication via API Key or JWT.\n"
+        "Set environment variables:\n"
+        "- `API_KEY_LIST`: Comma-separated valid API keys (header `X-API-KEY` or query `api_key`)\n"
+        "- `JWT_SECRET`: Secret for signing JWTs (Authorization: Bearer <JWT>)\n"
+        "- `JWT_ALGORITHM`: (optional, default: HS256)\n\n"
+        + get_auth_docstring()
+    ),
     version="1.0.0",
     openapi_tags=[
         {"name": "Event Data Source", "description": "Manage event data sources."},
