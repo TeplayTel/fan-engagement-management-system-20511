@@ -19,7 +19,16 @@ MONGODB_URL = os.environ.get("MONGODB_URL")
 MONGODB_DB = os.environ.get("MONGODB_DB", "event_db")
 
 if not MONGODB_URL:
-    raise RuntimeError("MONGODB_URL environment variable must be set for MongoDB connection.")
+    # Instead of raising at import (which crashes all FastAPI startup & disables / routes), emit a helpful warning.
+    # We will robustly handle missing Mongo at first DB access (within get_client).
+    import warnings
+    warnings.warn(
+        "MONGODB_URL environment variable is not set. MongoDB access will fail. "
+        "To run the API, please set MONGODB_URL in your environment or .env file. "
+        "Example: export MONGODB_URL='mongodb://localhost:27017'"
+    )
+    # Optionally, if you want strictness, uncomment the following line:
+    # raise RuntimeError("MONGODB_URL environment variable must be set for MongoDB connection.")
 
 logger = logging.getLogger("event_engagement_backend.db")
 

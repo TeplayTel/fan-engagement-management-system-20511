@@ -9,8 +9,23 @@ from .logging_utils import (
     install_exception_handlers,
 )
 
+import os
+import sys
+
 # Set up structured logging before app init
 configure_logging()
+
+# Perform startup-time validation for required environment variables
+required_env_vars = ['MONGODB_URL']
+missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
+if missing_vars:
+    print(
+        f"ERROR: Missing required environment variables: {', '.join(missing_vars)}.\n"
+        f"Please set them in your environment or .env file. The FastAPI server cannot start.",
+        file=sys.stderr
+    )
+    # Fail immediately to avoid confusing traceback later
+    raise SystemExit(1)
 
 app = FastAPI(
     title="Fan Engagement Event API",
