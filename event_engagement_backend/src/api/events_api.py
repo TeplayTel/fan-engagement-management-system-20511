@@ -26,6 +26,7 @@ from .db import (
     EventMetadataAsyncHelper,
     EventTimelineAsyncHelper,
 )
+from .kafka_pub import publish_event_lifecycle
 
 logger = logging.getLogger("event_engagement_backend.api")
 
@@ -225,6 +226,19 @@ async def create_event(
     if not doc:
         logger.error("Failed to retrieve newly created event metadata.")
         raise HTTPException(500, detail="Creation failed.")
+
+    # Publish to Kafka (fire-and-forget)
+    try:
+        await publish_event_lifecycle(
+            event_id=doc.id,
+            event_name=doc.event_name,
+            status=doc.status,
+            details={"payload": payload.dict(exclude_unset=True)},
+            op="created",
+        )
+    except Exception as exc:
+        logger.warning(f"Kafka publish failed for event creation: {exc}")
+
     return doc
 
 # PUBLIC_INTERFACE
@@ -303,6 +317,19 @@ async def update_event_metadata(
     doc = await helper.update_one({"id": event_id}, update_dict)
     if not doc:
         raise HTTPException(404, detail="Event not found or update failed.")
+
+    # Publish to Kafka
+    try:
+        await publish_event_lifecycle(
+            event_id=event_id,
+            event_name=doc.event_name,
+            status=doc.status,
+            details={"payload": payload.dict(exclude_unset=True)},
+            op="updated",
+        )
+    except Exception as exc:
+        logger.warning(f"Kafka publish failed for event update: {exc}")
+
     return doc
 
 # PUBLIC_INTERFACE
