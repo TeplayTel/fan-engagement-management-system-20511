@@ -3,6 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .events_api import router as events_router
 from .auth import get_auth_docstring
+from .logging_utils import (
+    configure_logging,
+    RequestIdMiddleware,
+    install_exception_handlers,
+)
+
+# Set up structured logging before app init
+configure_logging()
 
 app = FastAPI(
     title="Fan Engagement Event API",
@@ -23,6 +31,8 @@ app = FastAPI(
     ],
 )
 
+app.add_middleware(RequestIdMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Install standardized error/exception/log handlers after app setup
+install_exception_handlers(app)
 
 app.include_router(events_router)
 

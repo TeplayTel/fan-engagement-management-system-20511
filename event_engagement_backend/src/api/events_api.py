@@ -7,7 +7,7 @@ MongoDB async access, error handling, and OpenAPI tagging.
 Author: Fan Engagement Management System
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from typing import List, Optional, Dict, Any
 
 # Authentication imports
@@ -65,6 +65,7 @@ async def create_event_data_source(
     payload: EventDataSourceModel,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Create a new event data source configuration.
@@ -77,8 +78,9 @@ async def create_event_data_source(
         results = await helper.find({"name": payload.name, "created_at": payload.created_at})
         doc = results[0] if results else None
     if not doc:
-        logger.error("Failed to retrieve newly created event data source.")
+        logger.error("Failed to retrieve newly created event data source.", extra={"request_id": getattr(request.state, "request_id", "-")})
         raise HTTPException(500, detail="Creation failed after insert.")
+    logger.info(f"Created event data source: {doc.id}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return doc
 
 # PUBLIC_INTERFACE
@@ -93,6 +95,7 @@ async def list_event_data_sources(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Retrieve a list of configured data sources.
@@ -100,6 +103,7 @@ async def list_event_data_sources(
     query = {}
     if is_active is not None:
         query["is_active"] = is_active
+    logger.info(f"List event data sources with filter: {query}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return await helper.find(query)
 
 # PUBLIC_INTERFACE
@@ -114,13 +118,16 @@ async def get_event_data_source(
     ds_id: str,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Get a single data source by its ID.
     """
     doc = await helper.find_one({"id": ds_id})
     if not doc:
+        logger.warning(f"Event data source not found: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
         raise HTTPException(404, detail="Data source not found.")
+    logger.info(f"Fetched event data source: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return doc
 
 # PUBLIC_INTERFACE
@@ -136,6 +143,7 @@ async def update_event_data_source(
     payload: EventDataSourceModel,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Update a data source configuration.
@@ -146,7 +154,9 @@ async def update_event_data_source(
     update_dict.pop("id", None)
     doc = await helper.update_one({"id": ds_id}, update_dict)
     if not doc:
+        logger.warning(f"Failed to update event data source: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
         raise HTTPException(404, detail="Data source not found or update failed.")
+    logger.info(f"Updated event data source: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return doc
 
 # PUBLIC_INTERFACE
@@ -161,13 +171,16 @@ async def delete_event_data_source(
     ds_id: str,
     helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Delete a data source by its ID.
     """
     deleted = await helper.delete_one({"id": ds_id})
     if not deleted:
+        logger.warning(f"Attempted delete for missing event data source: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
         raise HTTPException(404, detail="Data source not found or already deleted.")
+    logger.info(f"Deleted event data source: {ds_id}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return None
 
 # -------------- EventMetadata CRUD & filtering --------------
@@ -213,6 +226,7 @@ async def create_event(
     helper: EventMetadataAsyncHelper = Depends(get_event_metadata_helper),
     ds_helper: EventDataSourceAsyncHelper = Depends(get_event_data_source_helper),
     user=Depends(get_current_user),
+    request: Request = None,
 ):
     """
     Create a new event with event metadata, with business validation.
@@ -221,6 +235,7 @@ async def create_event(
     if payload.data_source_id:
         src = await ds_helper.find_one({"id": payload.data_source_id, "is_active": True})
         if not src:
+            logger.warning(f"Referenced data_source_id {payload.data_source_id} does not exist or is inactive.", extra={"request_id": getattr(request.state, "request_id", "-")})
             raise HTTPException(status_code=400, detail="Referenced data_source_id does not exist or is inactive.")
 
     now = datetime.utcnow()
@@ -242,7 +257,7 @@ async def create_event(
         docs = await helper.find({"event_name": payload.event_name, "created_at": now})
         doc = docs[0] if docs else None
     if not doc:
-        logger.error("Failed to retrieve newly created event metadata.")
+        logger.error("Failed to retrieve newly created event metadata.", extra={"request_id": getattr(request.state, "request_id", "-")})
         raise HTTPException(500, detail="Creation failed.")
 
     # Publish to Kafka (fire-and-forget)
@@ -255,8 +270,9 @@ async def create_event(
             op="created",
         )
     except Exception as exc:
-        logger.warning(f"Kafka publish failed for event creation: {exc}")
+        logger.warning(f"Kafka publish failed for event creation: {exc}", extra={"request_id": getattr(request.state, "request_id", "-")})
 
+    logger.info(f"Created event metadata: {doc.id}", extra={"request_id": getattr(request.state, "request_id", "-")})
     return doc
 
 # PUBLIC_INTERFACE
